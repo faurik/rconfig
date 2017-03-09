@@ -83,6 +83,9 @@ class Connection {
         if (substr($this->_data, -9) == 'Username:' || substr($this->_data, -9) == 'username:') { // lowercase username for Cisco ACS5 implementations
             $this->_send($this->_username);
             $this->_readTo(':');
+        } else {
+            $this->_send($this->_username);
+            $this->_readTo(':');
         }
         $this->_send($this->_password);
 
@@ -118,11 +121,14 @@ class Connection {
             $this->_prompt = '#';
             $this->_readTo($this->_prompt);
             if (strpos($this->_data, $this->_prompt) === false) {
-                fclose($this->_connection);
-
-//                echo "Error: Authentication Failed for $this->_hostname\n";
-                $log->Conn("Error: Authentication Failed for $this->_hostname (File: " . $_SERVER['PHP_SELF'] . ")");
-                return false;
+                $this->_prompt = '>'; // for Huawei
+                if (strpos($this->_data, $this->_prompt) === false) {
+                    fclose($this->_connection);
+  
+//                  echo "Error: Authentication Failed for $this->_hostname\n";
+                    $log->Conn("Error: Authentication Failed for $this->_hostname (File: " . $_SERVER['PHP_SELF'] . ")");
+                    return false;
+                }
             }
         }
     }
