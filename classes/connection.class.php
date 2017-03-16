@@ -79,6 +79,11 @@ class Connection {
         }
         stream_set_timeout($this->_connection, $this->_timeout);
 
+        // for Edge-core switches
+        fputs($this->_connection,chr(0xFF).chr(0xFD).chr(0x03).chr(0xFF).chr(0xFB).chr(0x18).chr(0xFF).chr(0xFB).chr(0x1F).chr(0xFF).chr(0xFB).chr(0x20).chr(0xFF).chr(0xFB).chr(0x21).chr(0xFF).chr(0xFB).chr(0x22).chr(0xFF).chr(0xFB).chr(0x27).chr(0xFF).chr(0xFD).chr(0x05));
+        fputs($this->_connection,chr(0xFF).chr(0xFA).chr(0x18).chr(0x00).chr(0x58).chr(0x54).chr(0x45).chr(0x52).chr(0x4D).chr(0xFF).chr(0xF0));
+        fputs($this->_connection,chr(0xFF).chr(0xFD).chr(0x01).chr(0xFF).chr(0xFC).chr(0x01));
+        
         $this->_readTo(':');
         if (substr($this->_data, -9) == 'Username:' || substr($this->_data, -9) == 'username:') { // lowercase username for Cisco ACS5 implementations
 //            echo 'test';
