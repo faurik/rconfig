@@ -59,6 +59,7 @@
                                 <?php categories(); /* taken from devices.frm.func.php */ ?>
                                 </select>
                                 <div class="spacer"></div>
+                                <p><input type="checkbox" name="isDownload" value="ON">Download output?</p>
                                 <?php
                                 if (isset($errors['catId'])) {
                                     echo "<span class=\"error\">" . $errors['catId'] . "</span>";
