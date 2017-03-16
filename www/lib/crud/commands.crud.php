@@ -59,7 +59,11 @@ if (!$session->logged_in) {
 
             if (empty($_POST['editid'])) { // actual add
                 // add command to configcommand table
-                $db2->query("INSERT INTO configcommands (command, status) VALUES (:command, '1' )");
+                if ($_POST['isDownload'] == "ON") {
+                    $db2->query("INSERT INTO configcommands (command, status, isDownload) VALUES (:command, '1', true )");
+                } else {
+                    $db2->query("INSERT INTO configcommands (command, status, isDownload) VALUES (:command, '1', false )");
+                }
                 $db2->bind(':command', $command);
                 $queryResult = $db2->execute();
                 if ($queryResult) {
