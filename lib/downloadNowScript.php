@@ -121,6 +121,10 @@ if (!empty($getNodes)) {
         // loop over commands for given device
         foreach ($commands as $cmd) {
             $i++;
+            
+            $db2->query("SELECT isDownload FROM configcommands WHERE command = \"" . $cmd . "\"");
+            $isDownload = $db2->resultsetCols();
+            
             // Set VARs
 //echo $i. " - "  . $cmd ."; "; //for testing
             $command = $cmd;
@@ -135,7 +139,9 @@ if (!empty($getNodes)) {
             }
 
             //create new filepath and filename based on date and command -- see testFileClass for details - $fullpath return for use in insertFileContents method
-            $fullpath = $file->createFile($command);
+            if ($isDownload[0] == 1) {
+                $fullpath = $file->createFile($command);
+            }
 
             // check for connection type i.e. telnet SSHv1 SSHv2 & run the command on the device
             if ($device['deviceAccessMethodId'] == '1') { // telnet
@@ -163,26 +169,28 @@ if (!empty($getNodes)) {
             $jsonArray['cmdMsg' . $i] = "Command '" . $command . "' ran successfully";
 
             // create new array with PHPs EOL parameter
-            $filecontents = implode(PHP_EOL, $showCmd);
+            if ($isDownload[0] == 1) {
+                $filecontents = implode(PHP_EOL, $showCmd);
 
-            // insert $filecontents to file
-            $file->insertFileContents($filecontents, $fullpath);
+                // insert $filecontents to file
+                $file->insertFileContents($filecontents, $fullpath);
 
-            $filename = basename($fullpath); // get filename for DB entry
-            $fullpath = dirname($fullpath); // get fullpath for DB entry
-            // insert info to DB
-            $db2->query("INSERT INTO configs (deviceId, configDate, configTime, configLocation, configFilename) 
-                            VALUES (:id, NOW(), CURTIME(), :fullpath, :filename)");
-            $db2->bind(':id', $device['id']);
-            $db2->bind(':fullpath', $fullpath);
-            $db2->bind(':filename', $filename);
-            $configDbQExecute = $db2->execute();
+                $filename = basename($fullpath); // get filename for DB entry
+                $fullpath = dirname($fullpath); // get fullpath for DB entry
+                // insert info to DB
+                $db2->query("INSERT INTO configs (deviceId, configDate, configTime, configLocation, configFilename) 
+                                VALUES (:id, NOW(), CURTIME(), :fullpath, :filename)");
+                $db2->bind(':id', $device['id']);
+                $db2->bind(':fullpath', $fullpath);
+                $db2->bind(':filename', $filename);
+                $configDbQExecute = $db2->execute();
 
-            if ($configDbQExecute) {
-                $log->Conn("Success: Show Command '" . $command . "' for device '" . $device['deviceName'] . "' successful (File: " . $_SERVER['PHP_SELF'] . ")");
-            } else {
-                $log->Fatal("Failure: Unable to insert config information into DataBase Command (File: " . $_SERVER['PHP_SELF'] . ") SQL ERROR:" . mysql_error());
-                die();
+                if ($configDbQExecute) {
+                    $log->Conn("Success: Show Command '" . $command . "' for device '" . $device['deviceName'] . "' successful (File: " . $_SERVER['PHP_SELF'] . ")");
+                } else {
+                    $log->Fatal("Failure: Unable to insert config information into DataBase Command (File: " . $_SERVER['PHP_SELF'] . ") SQL ERROR:" . mysql_error());
+                    die();
+                }
             }
             //check for last command iteration...
             // reason for minus 1 is, $cmdNumRows is number of commands sent back. THe while loop starts a key 0, 
