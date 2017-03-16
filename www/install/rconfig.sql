@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS `configcommands` (
   `id` int(10) NOT NULL AUTO_INCREMENT,
   `command` varchar(255) DEFAULT NULL,
   `status` int(10) DEFAULT '1',
+  `isDownload` boolean DEFAULT true,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
 
