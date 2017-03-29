@@ -4,7 +4,7 @@ require("/home/rconfig/classes/db2.class.php");
 require("/home/rconfig/classes/backendScripts.class.php");
 require("/home/rconfig/classes/ADLog.class.php");
 require("/home/rconfig/classes/compareClass.php");
-require('/home/rconfig/classes/sshlib/Net/SSH2.php'); // this will be used in connection.class.php 
+require('/home/rconfig/classes/sshlib/Net/SSH2.php'); // this will be used in connection.class.php
 require("/home/rconfig/classes/connection.class.php");
 require("/home/rconfig/classes/debugging.class.php");
 require("/home/rconfig/classes/textFile.class.php");
@@ -76,16 +76,16 @@ if (!empty($getNodes)) {
     foreach ($getNodes as $row) {
         array_push($devices, $row);
     }
-    // start looping over every device returned 
+    // start looping over every device returned
     foreach ($devices as $device) {
         // debugging check and action
         if ($debugOnOff === '1' || isset($cliDebugOutput)) {
             $debug->debug($device);
         }
-        // ok, verification of host reachability based on socket connection to port i.e. 22 or 23. If fails, continue to next foreach iteration
-        $status = getHostStatus($device['deviceIpAddr'], $device['connPort']); // getHostStatus() from functions.php 
+        // ok, verification of host reachability based on fsockopen to host port i.e. 22 or 23. If fails, continue to next foreach iteration
+        $status = getHostStatus($device['deviceIpAddr'], $device['connPort']); // getHostStatus() from functions.php
 
-        if (preg_match("/Unavailable/", $status) === 1) {
+        if ($status === "<font color=red>Unavailable</font>") {
             $text = "Failure: Unable to connect to " . $device['deviceName'] . " - " . $device['deviceIpAddr'] . " when running taskID " . $tid;
             $report->eachData($device['deviceName'], $connStatusFail, $text); // log to report
             echo $text . " - getHostStatus() Error:(File: " . $_SERVER['PHP_SELF'] . ")\n"; // log to console
@@ -93,19 +93,19 @@ if (!empty($getNodes)) {
             continue;
         }
         // get command list for device. This is based on the catId. i.e. catId->cmdId->CmdName->Node
-        $db2->query("SELECT cmd.command 
+        $db2->query("SELECT cmd.command
                         FROM cmdCatTbl AS cct
                         LEFT JOIN configcommands AS cmd ON cmd.id = cct.configCmdId
                         WHERE cct.nodeCatId = :nodeCatId");
         $db2->bind(':nodeCatId', $device['nodeCatId']);
         $commands = $db2->resultsetCols();
         $cmdNumRows = count($commands);
-        // get the category for the device						
+        // get the category for the device
         $db2->query("SELECT categoryName FROM categories WHERE id = :nodeCatId");
         $db2->bind(':nodeCatId', $device['nodeCatId']);
         $catNameRow = $db2->resultset();
         $catName = $catNameRow[0];
-        
+
         // check if there are any commands for this devices category, and if not, error and break the loop for this iteration
         if ($cmdNumRows == 0) {
             $text = "Failure: There are no commands configured for category " . $catName . " when running taskID " . $tid;
@@ -142,10 +142,14 @@ if (!empty($getNodes)) {
             $log->Conn($connectedText . " - in (File: " . $_SERVER['PHP_SELF'] . ")"); // log to file
         } // end if device access method
 
-        $i = -1; // set i to prevent php notices & becuase the $commands array will always have a start key at 0	
+        $i = -1; // set i to prevent php notices & becuase the $commands array will always have a start key at 0
         // loop over commands for given device
         foreach ($commands as $cmd) {
             $i++;
+
+            $db2->query("SELECT isDownload FROM configcommands WHERE command = \"" . $cmd . "\"");
+            $isDownload = $db2->resultsetCols();
+
             // Set VARs
             $command = $cmd;
             $prompt = $device['devicePrompt'];
@@ -162,7 +166,11 @@ if (!empty($getNodes)) {
             }
 
             //create new filepath and filename based on date and command -- see testFileClass for details - $fullpath return for use in insertFileContents method
-            $fullpath = $file->createFile($command);
+            //$fullpath = $file->createFile($command);
+
+            if ($isDownload[0] == 1) {
+                $fullpath = $file->createFile($command);
+            }
 
             // check for connection type i.e. telnet SSHv1 SSHv2 & run the command on the device
             if ($device['deviceAccessMethodId'] == '1') { // telnet
@@ -195,6 +203,8 @@ if (!empty($getNodes)) {
             }
 
             // create new array with PHPs EOL parameter
+
+            if ($isDownload[0] == 1) {
             $filecontents = implode(PHP_EOL, $showCmd);
 
             // insert $filecontents to file
@@ -203,7 +213,7 @@ if (!empty($getNodes)) {
             $filename = basename($fullpath); // get filename for DB entry
             $fullpath = dirname($fullpath); // get fullpath for DB entry
             // insert info to DB
-            $db2->query("INSERT INTO configs (deviceId, configDate, configTime, configLocation, configFilename) 
+            $db2->query("INSERT INTO configs (deviceId, configDate, configTime, configLocation, configFilename)
                             VALUES (:id, NOW(), CURTIME(), :fullpath, :filename)");
             $db2->bind(':id', $device['id']);
             $db2->bind(':fullpath', $fullpath);
@@ -215,10 +225,11 @@ if (!empty($getNodes)) {
                 $log->Fatal("Failure: Unable to insert config information into DataBase Command (File: " . $_SERVER['PHP_SELF'] . ") SQL ERROR:" . mysql_error());
                 die();
             }
+            }
             //check for last command iteration...
-            // reason for minus 1 is, $cmdNumRows is number of commands sent back. THe while loop starts a key 0, 
+            // reason for minus 1 is, $cmdNumRows is number of commands sent back. THe while loop starts a key 0,
             // there for $i needs to equal $cmdNumRows -minus one for a match on the last commend that was run
-            if ($i == $cmdNumRows-1) { 
+            if ($i == $cmdNumRows-1) {
                 if ($device['deviceAccessMethodId'] == '1') { // 1 = telnet
                     $conn->close('40'); // close telnet connection - ssh already closed at this point
                     break;
@@ -235,7 +246,7 @@ if (!empty($getNodes)) {
     if ($taskRow[0]['mailConnectionReport'] == '1') {
         $backendScripts->reportMailer($db2, $log, $title, $config_reports_basedir, $reportDirectory, $reportFilename, $taskname);
     }
-    // reset folder permissions for data directory. This means script was run from the shell as possibly root 
+    // reset folder permissions for data directory. This means script was run from the shell as possibly root
     // i.e. not apache user and this cause dir owner to be reset causing future downloads to be permission denied
     // check if $resetPerms is set to 1, and invoke permissions reset for /home/rconfig/*
     extract($backendScripts->resetPerms($log, $resetPerms));
